@@ -185,84 +185,80 @@
         &copy; 2026 Perles des Savants
     </footer>
 
-    <script>
-        let allQuotes = [];
+   <script>
+    let allQuotes = [];
 
-        async function fetchQuotes() {
-            try {
-                const response = await fetch('/api/perles');
-                if (!response.ok) throw new Error("Erreur réseau");
-                
-                allQuotes = await response.json();
-                console.log("Données chargées :", allQuotes); // Pour vérifier dans F12
-                renderQuotes(allQuotes);
-            } catch (err) {
-                console.error(err);
-                document.getElementById('quotes-container').innerHTML = 
-                    "<p>Impossible de charger les perles. Vérifiez la connexion API.</p>";
-            }
-        }
-
-        function renderQuotes(quotes) {
-            const container = document.getElementById('quotes-container');
+    async function fetchQuotes() {
+        const container = document.getElementById('quotes-container');
+        try {
+            // Ajout d'un paramètre ?v= pour forcer Cloudflare à ignorer le cache
+            const response = await fetch('/api/perles?v=' + Date.now());
             
-            if (!quotes || quotes.length === 0) {
-                container.innerHTML = "<p>Aucune perle à afficher.</p>";
-                return;
+            if (!response.ok) {
+                throw new Error(`Erreur HTTP: ${response.status}`);
             }
 
-            container.innerHTML = quotes.map(q => {
-                // Gestion robuste des noms de colonnes (majuscules/minuscules)
-                const text = q.text || q.TEXT || "";
-                const author = q.author || q.AUTHOR || "Anonyme";
-                const page = q.page || q.PAGE || null;
-                const cover = q.cover_url || q.COVER_URL || null;
-                const tag = q.tag || q.TAG || "";
+            const data = await response.json();
+            console.log("Données reçues :", data); 
 
-                return `
-                <div class="quote-card">
-                    ${cover ? `<img src="${cover}" class="cover-img">` : ''}
-                    <div class="quote-text">"${text}"</div>
-                    <span class="quote-author">
-                        — ${author} 
-                        ${page ? `<small style="opacity: 0.6; font-weight: normal;">(p. ${page})</small>` : ''}
-                    </span>
-                    <div class="quote-tag">${tag}</div>
-                </div>
-                <hr style="border: none; border-bottom: 1px solid var(--lines); margin: 1.5rem 0; clear: both;">
-                `;
-            }).join('');
+            allQuotes = Array.isArray(data) ? data : (data.results || []);
+            renderQuotes(allQuotes);
+        } catch (err) {
+            console.error("Erreur détaillée :", err);
+            container.innerHTML = `<p style="color:var(--accent)">⚠️ Erreur de chargement : ${err.message}<br>Essayez de rafraîchir la page.</p>`;
+        }
+    }
+
+    function renderQuotes(quotes) {
+        const container = document.getElementById('quotes-container');
+        if (!quotes || quotes.length === 0) {
+            container.innerHTML = "<p>Aucune perle disponible.</p>";
+            return;
         }
 
-        function updateFilter(tag, btn) {
-            // UI : Boutons
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            
-            // Logique
-            if (tag === 'all') {
-                renderQuotes(allQuotes);
-            } else {
-                const filtered = allQuotes.filter(q => {
-                    const qTag = (q.tag || q.TAG || "").toLowerCase();
-                    return qTag === tag.toLowerCase();
-                });
-                renderQuotes(filtered);
-            }
-        }
+        container.innerHTML = quotes.map(q => {
+            const text = q.text || q.TEXT || "";
+            const author = q.author || q.AUTHOR || "Anonyme";
+            const page = q.page || q.PAGE || "";
+            const cover = q.cover_url || q.COVER_URL || null;
+            const tag = q.tag || q.TAG || "";
 
-        function toggleTheme() {
-            const isDark = document.body.getAttribute('data-theme') === 'dark';
-            document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
-            localStorage.setItem('theme', isDark ? 'light' : 'dark');
-        }
+            return `
+            <div class="quote-card">
+                ${cover ? `<img src="${cover}" class="cover-img">` : ''}
+                <div class="quote-text">"${text}"</div>
+                <span class="quote-author">
+                    — ${author} 
+                    ${page ? `<small style="opacity: 0.6; font-weight: normal;">(p. ${page})</small>` : ''}
+                </span>
+                <div class="quote-tag">${tag}</div>
+            </div>
+            <hr style="border: none; border-bottom: 1px solid var(--lines); margin: 1.5rem 0; clear: both;">
+            `;
+        }).join('');
+    }
 
-        // Init
-        if (localStorage.getItem('theme') === 'dark') {
-            document.body.setAttribute('data-theme', 'dark');
+    function updateFilter(tag, btn) {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        if (tag === 'all') {
+            renderQuotes(allQuotes);
+        } else {
+            renderQuotes(allQuotes.filter(q => (q.tag || q.TAG || "").toLowerCase() === tag.toLowerCase()));
         }
-        
-        fetchQuotes();
-    </script>
+    }
+
+    // Gestion du thème
+    if (localStorage.getItem('theme') === 'dark') document.body.setAttribute('data-theme', 'dark');
+    function toggleTheme() {
+        const isDark = document.body.getAttribute('data-theme') === 'dark';
+        document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+        localStorage.setItem('theme', isDark ? 'light' : 'dark');
+    }
+
+    // Lancement
+    window.onload = fetchQuotes;
+</script>
+
 </body>
 </html>
