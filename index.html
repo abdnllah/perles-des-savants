@@ -55,6 +55,7 @@
             font-family: 'Georgia', serif;
             font-weight: normal;
             letter-spacing: 2px;
+            color: var(--accent);
         }
 
         .notebook {
@@ -68,7 +69,7 @@
             background-image: linear-gradient(var(--lines) 1px, transparent 1px);
             background-size: 100% 2rem;
             line-height: 2rem;
-            border-radius: 2px;
+            border-radius: 4px;
         }
 
         .notebook::before {
@@ -95,11 +96,11 @@
             background: transparent;
             border: 1px solid var(--accent);
             color: var(--accent);
-            padding: 2px 12px;
+            padding: 4px 15px;
             border-radius: 20px;
             cursor: pointer;
+            font-size: 0.85rem;
             transition: 0.2s;
-            font-size: 0.9rem;
         }
 
         .filter-btn.active {
@@ -111,11 +112,10 @@
             margin-bottom: 2rem;
             position: relative;
             clear: both;
-            min-height: 100px;
         }
 
         .quote-text {
-            font-size: 1.2rem;
+            font-size: 1.15rem;
             margin-bottom: 0.5rem;
             font-style: italic;
             line-height: 1.6;
@@ -136,44 +136,44 @@
         }
 
         .cover-img {
-            max-width: 120px;
+            max-width: 100px;
             float: right;
             margin-left: 20px;
             margin-bottom: 10px;
             border-radius: 4px;
-            box-shadow: 2px 4px 10px rgba(0,0,0,0.15);
+            box-shadow: 2px 4px 10px rgba(0,0,0,0.1);
         }
 
         footer {
             text-align: center;
             margin: 60px;
-            opacity: 0.4;
+            opacity: 0.5;
             font-size: 0.8rem;
         }
 
         @media (max-width: 600px) {
             .notebook { padding: 40px 20px 40px 50px; }
             .notebook::before { left: 40px; }
-            .cover-img { max-width: 80px; }
+            .cover-img { max-width: 70px; }
         }
     </style>
 </head>
 <body>
 
-    <button class="theme-toggle" onclick="toggleTheme()" title="Changer le mode">🌓</button>
+    <button class="theme-toggle" onclick="toggleTheme()">🌓</button>
 
     <header>
         <h1>Perles des Savants</h1>
     </header>
 
     <div class="notebook">
-        <div class="filters" id="filters">
-            <button class="filter-btn active" onclick="filterQuotes('all')">Tous</button>
-            <button class="filter-btn" onclick="filterQuotes('tawhid')">Tawhid</button>
-            <button class="filter-btn" onclick="filterQuotes('zuhd')">Zuhd</button>
-            <button class="filter-btn" onclick="filterQuotes('salafs')">Salafs</button>
-            <button class="filter-btn" onclick="filterQuotes('women')">Women</button>
-            <button class="filter-btn" onclick="filterQuotes('marriage')">Marriage</button>
+        <div class="filters">
+            <button class="filter-btn active" onclick="updateFilter('all', this)">Tous</button>
+            <button class="filter-btn" onclick="updateFilter('tawhid', this)">Tawhid</button>
+            <button class="filter-btn" onclick="updateFilter('zuhd', this)">Zuhd</button>
+            <button class="filter-btn" onclick="updateFilter('salafs', this)">Salafs</button>
+            <button class="filter-btn" onclick="updateFilter('women', this)">Women</button>
+            <button class="filter-btn" onclick="updateFilter('marriage', this)">Marriage</button>
         </div>
 
         <div id="quotes-container">
@@ -188,79 +188,80 @@
     <script>
         let allQuotes = [];
 
-        // Charger les citations depuis l'API Cloudflare
         async function fetchQuotes() {
             try {
                 const response = await fetch('/api/perles');
-                if (!response.ok) throw new Error();
+                if (!response.ok) throw new Error("Erreur réseau");
+                
                 allQuotes = await response.json();
+                console.log("Données chargées :", allQuotes); // Pour vérifier dans F12
                 renderQuotes(allQuotes);
             } catch (err) {
-                document.getElementById('quotes-container').innerHTML = "<p>Erreur lors du chargement des données. Vérifiez la base D1.</p>";
+                console.error(err);
+                document.getElementById('quotes-container').innerHTML = 
+                    "<p>Impossible de charger les perles. Vérifiez la connexion API.</p>";
             }
         }
 
-        // Afficher les citations dans le HTML
-       function renderQuotes(quotes) {
-    const container = document.getElementById('quotes-container');
-    if (!container) return; // Sécurité si l'ID est mal écrit
-
-    if (!quotes || quotes.length === 0) {
-        container.innerHTML = "<p>Aucune perle trouvée.</p>";
-        return;
-    }
-
-    container.innerHTML = quotes.map(q => {
-        // On s'assure que les variables existent pour éviter les erreurs "undefined"
-        const author = q.author || q.AUTHOR || "Auteur inconnu";
-        const text = q.text || q.TEXT || "";
-        const page = q.page || q.PAGE || null;
-        const cover = q.cover_url || q.COVER_URL || null;
-        const tag = q.tag || q.TAG || "";
-
-        return `
-            <div class="quote-card">
-                ${cover ? `<img src="${cover}" class="cover-img" alt="Couverture">` : ''}
-                <div class="quote-text">"${text}"</div>
-                <span class="quote-author">
-                    — ${author} 
-                    ${page ? `<small style="opacity: 0.6; font-size: 0.8rem;">(p. ${page})</small>` : ''}
-                </span>
-                <div class="quote-tag">${tag}</div>
-            </div>
-            <hr style="border: none; border-bottom: 1px solid var(--lines); margin: 1.5rem 0; clear: both;">
-        `;
-    }).join('');
-}
-        // Système de filtrage
-        function filterQuotes(tag) {
-            // Mise à jour visuelle des boutons
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.innerText.toLowerCase() === tag);
-            });
+        function renderQuotes(quotes) {
+            const container = document.getElementById('quotes-container');
             
+            if (!quotes || quotes.length === 0) {
+                container.innerHTML = "<p>Aucune perle à afficher.</p>";
+                return;
+            }
+
+            container.innerHTML = quotes.map(q => {
+                // Gestion robuste des noms de colonnes (majuscules/minuscules)
+                const text = q.text || q.TEXT || "";
+                const author = q.author || q.AUTHOR || "Anonyme";
+                const page = q.page || q.PAGE || null;
+                const cover = q.cover_url || q.COVER_URL || null;
+                const tag = q.tag || q.TAG || "";
+
+                return `
+                <div class="quote-card">
+                    ${cover ? `<img src="${cover}" class="cover-img">` : ''}
+                    <div class="quote-text">"${text}"</div>
+                    <span class="quote-author">
+                        — ${author} 
+                        ${page ? `<small style="opacity: 0.6; font-weight: normal;">(p. ${page})</small>` : ''}
+                    </span>
+                    <div class="quote-tag">${tag}</div>
+                </div>
+                <hr style="border: none; border-bottom: 1px solid var(--lines); margin: 1.5rem 0; clear: both;">
+                `;
+            }).join('');
+        }
+
+        function updateFilter(tag, btn) {
+            // UI : Boutons
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            // Logique
             if (tag === 'all') {
                 renderQuotes(allQuotes);
             } else {
-                const filtered = allQuotes.filter(q => q.tag.toLowerCase() === tag);
+                const filtered = allQuotes.filter(q => {
+                    const qTag = (q.tag || q.TAG || "").toLowerCase();
+                    return qTag === tag.toLowerCase();
+                });
                 renderQuotes(filtered);
             }
         }
 
-        // Mode Sombre
         function toggleTheme() {
-            const body = document.body;
-            const isDark = body.getAttribute('data-theme') === 'dark';
-            body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+            const isDark = document.body.getAttribute('data-theme') === 'dark';
+            document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
             localStorage.setItem('theme', isDark ? 'light' : 'dark');
         }
 
-        // Charger le thème préféré au démarrage
+        // Init
         if (localStorage.getItem('theme') === 'dark') {
             document.body.setAttribute('data-theme', 'dark');
         }
-
-        // Lancement initial
+        
         fetchQuotes();
     </script>
 </body>
