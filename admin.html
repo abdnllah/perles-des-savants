@@ -4,51 +4,135 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - Perles des Savants</title>
-    <link rel="stylesheet" href="style.css"> <style>
-        body { padding: 20px; background: #f0f0f0; }
-        .admin-box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
-        input, textarea, select { width: 100%; margin-bottom: 10px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
-        button { width: 100%; padding: 10px; background: #333; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        .back-link { display: block; text-align: center; margin-top: 20px; color: #666; text-decoration: none; }
+    <style>
+        :root {
+            --bg: #f4f7f6;
+            --accent: #844F4A;
+            --text: #2c3e50;
+        }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .admin-card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 450px;
+        }
+        h2 { text-align: center; color: var(--accent); margin-bottom: 25px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9rem; }
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+        textarea { height: 120px; resize: vertical; }
+        button {
+            width: 100%;
+            padding: 15px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.9; }
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 20px;
+            color: #7f8c8d;
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
     </style>
 </head>
 <body>
 
-    <div class="admin-box">
-        <h2>Ajouter une Perle</h2>
-        <input type="text" id="author" placeholder="Auteur (ex: Imam Al-Ghazali)">
-        <textarea id="content" placeholder="La citation..."></textarea>
+<div class="admin-card">
+    <h2>Ajouter une Perle</h2>
+    <form id="adminForm">
+        <label>Auteur</label>
+        <input type="text" id="author" placeholder="Ex: Imam Al-Ghazali" required>
+
+        <label>Citation</label>
+        <textarea id="text" placeholder="Entrez la sagesse ici..." required></textarea>
+
+        <label>Catégorie (Tag)</label>
         <select id="tag">
-            <option value="Tawhid">Tawhid</option>
-            <option value="Zuhd">Zuhd</option>
-            <option value="Salafs">Salafs</option>
-            <option value="Science">Science</option>
+            <option value="tawhid">Tawhid</option>
+            <option value="zuhd">Zuhd</option>
+            <option value="salafs">Salafs</option>
+            <option value="women">Women</option>
+            <option value="marriage">Marriage</option>
         </select>
-        <button onclick="publishPerle()">Publier sur le site</button>
-        <a href="/" class="back-link">← Retour au site public</a>
-    </div>
 
-    <script>
-        async function publishPerle() {
-            const perle = {
-                author: document.getElementById('author').value,
-                content: document.getElementById('content').value,
-                tag: document.getElementById('tag').value
-            };
+        <label>Image de couverture (Optionnel)</label>
+        <input type="file" id="cover" accept="image/*">
 
+        <button type="submit" id="submitBtn">Publier la Perle</button>
+    </form>
+    <a href="/" class="back-link">← Retour au site public</a>
+</div>
+
+<script>
+    const form = document.getElementById('adminForm');
+    const submitBtn = document.getElementById('submitBtn');
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Publication en cours...";
+
+        const formData = new FormData();
+        formData.append('author', document.getElementById('author').value);
+        formData.append('text', document.getElementById('text').value);
+        formData.append('tag', document.getElementById('tag').value);
+        
+        const coverFile = document.getElementById('cover').files[0];
+        if (coverFile) {
+            formData.append('cover', coverFile);
+        }
+
+        try {
             const response = await fetch('/api/perles', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(perle)
+                body: formData
             });
 
             if (response.ok) {
-                alert("Perle publiée avec succès !");
-                window.location.href = "/";
+                alert("La perle a été ajoutée avec succès !");
+                form.reset();
+                window.location.href = "/"; // Redirige vers l'accueil pour voir le résultat
             } else {
-                alert("Erreur lors de la publication.");
+                const errorData = await response.text();
+                alert("Erreur lors de la publication : " + errorData);
             }
+        } catch (error) {
+            alert("Erreur réseau ou serveur.");
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Publier la Perle";
         }
-    </script>
+    });
+</script>
+
 </body>
 </html>
