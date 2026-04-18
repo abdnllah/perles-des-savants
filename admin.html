@@ -6,78 +6,131 @@
     <title>Admin - Perles des Savants</title>
     <style>
         :root { --bg: #f4f7f6; --accent: #844F4A; --text: #2c3e50; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); padding: 20px; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 20px; line-height: 1.6; }
         .container { max-width: 800px; margin: auto; }
-        .card { background: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        label { display: block; margin: 10px 0 5px; font-weight: bold; }
-        input, textarea, select { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-        button { background: var(--accent); color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; }
-        .perle-item { display: flex; align-items: center; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; }
-        .thumb { width: 40px; height: 40px; object-fit: cover; margin-right: 10px; border-radius: 4px; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 30px; }
+        h2 { color: var(--accent); margin-top: 0; border-bottom: 2px solid var(--bg); padding-bottom: 10px; }
+        
+        label { display: block; margin: 10px 0 5px; font-weight: bold; font-size: 0.9rem; }
+        input, textarea, select { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
+        textarea { height: 100px; resize: vertical; }
+        
+        .flex-row { display: flex; gap: 15px; }
+        .flex-row > div { flex: 1; }
+
+        button { background: var(--accent); color: white; border: none; padding: 15px 25px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; transition: transform 0.1s; }
+        button:active { transform: scale(0.98); }
+        button:disabled { background: #ccc; }
+
+        .perle-item { display: flex; align-items: center; justify-content: space-between; padding: 15px; border-bottom: 1px solid #eee; background: #fff; border-radius: 8px; margin-bottom: 10px; }
+        .perle-info { flex-grow: 1; margin-right: 15px; }
+        .perle-meta { font-size: 0.85rem; color: #7f8c8d; }
+        .btn-delete { background: #e74c3c; width: auto; padding: 8px 15px; font-size: 0.8rem; }
+        .thumb { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; margin-right: 15px; background: #f0f0f0; border: 1px solid #eee; }
     </style>
 </head>
 <body>
+
 <div class="container">
     <div class="card">
-        <h2>✨ Nouvelle Perle</h2>
+        <h2>✨ Ajouter une nouvelle perle</h2>
         <form id="addForm">
-            <input type="text" id="author" placeholder="Auteur" required>
-            <textarea id="text" placeholder="Citation..." required></textarea>
-            <div style="display: flex; gap: 10px;">
-                <select id="tag">
-                    <option value="tawhid">Tawhid</option>
-                    <option value="zuhd">Zuhd</option>
-                    <option value="salafs">Salafs</option>
-                </select>
-                <input type="text" id="page" placeholder="Page (ex: 42)">
+            <label>Auteur</label>
+            <input type="text" id="author" placeholder="Nom du savant (ex: Ibn al-Qayyim)" required>
+            
+            <label>Citation</label>
+            <textarea id="text" placeholder="Entrez la citation ici..." required></textarea>
+            
+            <div class="flex-row">
+                <div>
+                    <label>Catégorie</label>
+                    <select id="tag">
+                        <option value="tawhid">Tawhid</option>
+                        <option value="zuhd">Zuhd</option>
+                        <option value="salafs">Salafs</option>
+                        <option value="women">Women</option>
+                        <option value="marriage">Marriage</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Page</label>
+                    <input type="text" id="page" placeholder="Ex: p. 124">
+                </div>
             </div>
+            
+            <label>Image de couverture (Optionnel)</label>
             <input type="file" id="cover" accept="image/*">
-            <button type="submit" id="submitBtn">🚀 Publier</button>
+            
+            <button type="submit" id="submitBtn">🚀 Publier la Perle</button>
         </form>
     </div>
+
     <div class="card">
-        <h2>📚 Gestion</h2>
-        <div id="perlesList">Chargement...</div>
+        <h2>📚 Liste des Perles</h2>
+        <div id="perlesList">Chargement de la bibliothèque...</div>
     </div>
+    
+    <p style="text-align: center;"><a href="/" style="color: #7f8c8d; text-decoration: none;">← Voir le site public</a></p>
 </div>
 
 <script>
     const addForm = document.getElementById('addForm');
+    const perlesList = document.getElementById('perlesList');
+
+    // Charger la liste
     async function loadPerles() {
-        const res = await fetch('/api/perles');
-        const data = await res.json();
-        document.getElementById('perlesList').innerHTML = data.map(p => `
-            <div class="perle-item">
-                <div style="display:flex; align-items:center;">
-                    <img src="${p.cover_url || ''}" class="thumb">
-                    <span><strong>${p.author}</strong> <small>(p. ${p.page || '-'})</small></span>
+        try {
+            const res = await fetch('/api/perles');
+            const data = await res.json();
+            perlesList.innerHTML = data.length ? data.map(p => `
+                <div class="perle-item">
+                    <img src="${p.cover_url || ''}" class="thumb" onerror="this.style.display='none'">
+                    <div class="perle-info">
+                        <strong>${p.author}</strong> <small style="color:#999">${p.page ? '(p. '+p.page+')' : ''}</small><br>
+                        <span class="perle-meta">#${p.tag} | ${p.text.substring(0, 50)}...</span>
+                    </div>
+                    <button class="btn-delete" onclick="deletePerle(${p.id})">Supprimer</button>
                 </div>
-                <button onclick="deletePerle(${p.id})" style="width:auto; background:#e74c3c; padding:5px 10px;">Supprimer</button>
-            </div>
-        `).join('');
+            `).join('') : "Aucune perle enregistrée.";
+        } catch (e) { perlesList.innerHTML = "Erreur de connexion à l'API."; }
     }
 
+    // Publier
     addForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = true; btn.innerText = "⏳ Publication en cours...";
+
         const formData = new FormData();
         formData.append('author', document.getElementById('author').value);
         formData.append('text', document.getElementById('text').value);
         formData.append('tag', document.getElementById('tag').value);
         formData.append('page', document.getElementById('page').value);
+        
         const file = document.getElementById('cover').files[0];
         if (file) formData.append('cover', file);
 
-        await fetch('/api/perles', { method: 'POST', body: formData });
-        addForm.reset();
-        loadPerles();
+        try {
+            const res = await fetch('/api/perles', { method: 'POST', body: formData });
+            if (res.ok) {
+                addForm.reset();
+                await loadPerles();
+            } else { alert("Erreur serveur lors de la publication."); }
+        } catch (err) { alert("Erreur réseau."); }
+        
+        btn.disabled = false; btn.innerText = "🚀 Publier la Perle";
     });
 
+    // Supprimer
     async function deletePerle(id) {
-        if (confirm("Supprimer ?")) {
-            await fetch('/api/perles?id=' + id, { method: 'DELETE' });
-            loadPerles();
-        }
+        if (!confirm("Voulez-vous vraiment supprimer cette citation ?")) return;
+        try {
+            const res = await fetch(\`/api/perles?id=\${id}\`, { method: 'DELETE' });
+            if (res.ok) loadPerles();
+            else alert("Échec de la suppression.");
+        } catch (err) { alert("Erreur réseau."); }
     }
+
     loadPerles();
 </script>
 </body>
