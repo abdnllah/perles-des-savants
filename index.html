@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Perles des Savants</title>
-    <link rel="stylesheet" href="style.css">
     <style>
         :root {
             --bg: #EEF0F2;
@@ -52,6 +51,12 @@
             margin: 40px 0;
         }
 
+        h1 {
+            font-family: 'Georgia', serif;
+            font-weight: normal;
+            letter-spacing: 2px;
+        }
+
         .notebook {
             width: 90%;
             max-width: 800px;
@@ -63,6 +68,7 @@
             background-image: linear-gradient(var(--lines) 1px, transparent 1px);
             background-size: 100% 2rem;
             line-height: 2rem;
+            border-radius: 2px;
         }
 
         .notebook::before {
@@ -73,6 +79,7 @@
             bottom: 0;
             width: 2px;
             background: var(--margin);
+            opacity: 0.5;
         }
 
         .filters {
@@ -80,16 +87,19 @@
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
+            position: relative;
+            z-index: 10;
         }
 
         .filter-btn {
             background: transparent;
             border: 1px solid var(--accent);
             color: var(--accent);
-            padding: 5px 15px;
+            padding: 2px 12px;
             border-radius: 20px;
             cursor: pointer;
             transition: 0.2s;
+            font-size: 0.9rem;
         }
 
         .filter-btn.active {
@@ -100,12 +110,15 @@
         .quote-card {
             margin-bottom: 2rem;
             position: relative;
+            clear: both;
+            min-height: 100px;
         }
 
         .quote-text {
             font-size: 1.2rem;
             margin-bottom: 0.5rem;
             font-style: italic;
+            line-height: 1.6;
         }
 
         .quote-author {
@@ -115,24 +128,39 @@
         }
 
         .quote-tag {
-            font-size: 0.8rem;
+            font-size: 0.7rem;
             text-transform: uppercase;
             letter-spacing: 1px;
-            opacity: 0.6;
+            opacity: 0.5;
+            margin-top: 5px;
         }
 
         .cover-img {
-            max-width: 150px;
+            max-width: 120px;
             float: right;
             margin-left: 20px;
+            margin-bottom: 10px;
             border-radius: 4px;
-            box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
+            box-shadow: 2px 4px 10px rgba(0,0,0,0.15);
+        }
+
+        footer {
+            text-align: center;
+            margin: 60px;
+            opacity: 0.4;
+            font-size: 0.8rem;
+        }
+
+        @media (max-width: 600px) {
+            .notebook { padding: 40px 20px 40px 50px; }
+            .notebook::before { left: 40px; }
+            .cover-img { max-width: 80px; }
         }
     </style>
 </head>
 <body>
 
-    <button class="theme-toggle" onclick="toggleTheme()">🌓</button>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Changer le mode">🌓</button>
 
     <header>
         <h1>Perles des Savants</h1>
@@ -144,6 +172,8 @@
             <button class="filter-btn" onclick="filterQuotes('tawhid')">Tawhid</button>
             <button class="filter-btn" onclick="filterQuotes('zuhd')">Zuhd</button>
             <button class="filter-btn" onclick="filterQuotes('salafs')">Salafs</button>
+            <button class="filter-btn" onclick="filterQuotes('women')">Women</button>
+            <button class="filter-btn" onclick="filterQuotes('marriage')">Marriage</button>
         </div>
 
         <div id="quotes-container">
@@ -151,38 +181,51 @@
         </div>
     </div>
 
-    <footer style="text-align: center; margin: 50px; opacity: 0.5;">
+    <footer>
         &copy; 2026 Perles des Savants
     </footer>
 
     <script>
         let allQuotes = [];
 
-        // Charger les citations depuis l'API D1
+        // Charger les citations depuis l'API Cloudflare
         async function fetchQuotes() {
             try {
                 const response = await fetch('/api/perles');
+                if (!response.ok) throw new Error();
                 allQuotes = await response.json();
                 renderQuotes(allQuotes);
             } catch (err) {
-                document.getElementById('quotes-container').innerHTML = "<p>Erreur de chargement.</p>";
+                document.getElementById('quotes-container').innerHTML = "<p>Erreur lors du chargement des données. Vérifiez la base D1.</p>";
             }
         }
 
+        // Afficher les citations dans le HTML
         function renderQuotes(quotes) {
             const container = document.getElementById('quotes-container');
+            
+            if (quotes.length === 0) {
+                container.innerHTML = "<p>Aucune perle trouvée dans cette catégorie.</p>";
+                return;
+            }
+
             container.innerHTML = quotes.map(q => `
                 <div class="quote-card">
                     ${q.cover_url ? `<img src="${q.cover_url}" class="cover-img" alt="Couverture">` : ''}
                     <div class="quote-text">"${q.text}"</div>
-                    <span class="quote-author">— ${q.author}</span>
+                    <span class="quote-author">
+                        — ${q.author} 
+                        ${q.page ? `<small style="opacity: 0.6; font-size: 0.8rem; font-weight: normal;">(p. ${q.page})</small>` : ''}
+                    </span>
                     <div class="quote-tag">${q.tag}</div>
                 </div>
-                <hr style="border: none; border-bottom: 1px solid var(--lines); margin: 1rem 0;">
+                <hr style="border: none; border-bottom: 1px solid var(--lines); margin: 1.5rem 0; clear: both;">
             `).join('');
         }
 
+        // Système de filtrage
         function filterQuotes(tag) {
+            // Mise à jour visuelle des boutons
             document.querySelectorAll('.filter-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.innerText.toLowerCase() === tag);
             });
@@ -195,13 +238,20 @@
             }
         }
 
+        // Mode Sombre
         function toggleTheme() {
             const body = document.body;
-            const current = body.getAttribute('data-theme');
-            body.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+            const isDark = body.getAttribute('data-theme') === 'dark';
+            body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+            localStorage.setItem('theme', isDark ? 'light' : 'dark');
         }
 
-        // Initialisation
+        // Charger le thème préféré au démarrage
+        if (localStorage.getItem('theme') === 'dark') {
+            document.body.setAttribute('data-theme', 'dark');
+        }
+
+        // Lancement initial
         fetchQuotes();
     </script>
 </body>
