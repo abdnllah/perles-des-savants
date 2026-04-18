@@ -201,28 +201,37 @@
         }
 
         // Afficher les citations dans le HTML
-        function renderQuotes(quotes) {
-            const container = document.getElementById('quotes-container');
-            
-            if (quotes.length === 0) {
-                container.innerHTML = "<p>Aucune perle trouvée dans cette catégorie.</p>";
-                return;
-            }
+       function renderQuotes(quotes) {
+    const container = document.getElementById('quotes-container');
+    if (!container) return; // Sécurité si l'ID est mal écrit
 
-            container.innerHTML = quotes.map(q => `
-                <div class="quote-card">
-                    ${q.cover_url ? `<img src="${q.cover_url}" class="cover-img" alt="Couverture">` : ''}
-                    <div class="quote-text">"${q.text}"</div>
-                    <span class="quote-author">
-                        — ${q.author} 
-                        ${q.page ? `<small style="opacity: 0.6; font-size: 0.8rem; font-weight: normal;">(p. ${q.page})</small>` : ''}
-                    </span>
-                    <div class="quote-tag">${q.tag}</div>
-                </div>
-                <hr style="border: none; border-bottom: 1px solid var(--lines); margin: 1.5rem 0; clear: both;">
-            `).join('');
-        }
+    if (!quotes || quotes.length === 0) {
+        container.innerHTML = "<p>Aucune perle trouvée.</p>";
+        return;
+    }
 
+    container.innerHTML = quotes.map(q => {
+        // On s'assure que les variables existent pour éviter les erreurs "undefined"
+        const author = q.author || q.AUTHOR || "Auteur inconnu";
+        const text = q.text || q.TEXT || "";
+        const page = q.page || q.PAGE || null;
+        const cover = q.cover_url || q.COVER_URL || null;
+        const tag = q.tag || q.TAG || "";
+
+        return `
+            <div class="quote-card">
+                ${cover ? `<img src="${cover}" class="cover-img" alt="Couverture">` : ''}
+                <div class="quote-text">"${text}"</div>
+                <span class="quote-author">
+                    — ${author} 
+                    ${page ? `<small style="opacity: 0.6; font-size: 0.8rem;">(p. ${page})</small>` : ''}
+                </span>
+                <div class="quote-tag">${tag}</div>
+            </div>
+            <hr style="border: none; border-bottom: 1px solid var(--lines); margin: 1.5rem 0; clear: both;">
+        `;
+    }).join('');
+}
         // Système de filtrage
         function filterQuotes(tag) {
             // Mise à jour visuelle des boutons
