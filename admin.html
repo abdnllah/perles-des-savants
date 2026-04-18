@@ -5,134 +5,80 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - Perles des Savants</title>
     <style>
-        :root {
-            --bg: #f4f7f6;
-            --accent: #844F4A;
-            --text: #2c3e50;
-        }
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-        }
-        .admin-card {
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            width: 100%;
-            max-width: 450px;
-        }
-        h2 { text-align: center; color: var(--accent); margin-bottom: 25px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9rem; }
-        input, textarea, select {
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 20px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            box-sizing: border-box;
-            font-size: 1rem;
-        }
-        textarea { height: 120px; resize: vertical; }
-        button {
-            width: 100%;
-            padding: 15px;
-            background: var(--accent);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
-        button:hover { opacity: 0.9; }
-        .back-link {
-            display: block;
-            text-align: center;
-            margin-top: 20px;
-            color: #7f8c8d;
-            text-decoration: none;
-            font-size: 0.85rem;
-        }
+        :root { --bg: #f4f7f6; --accent: #844F4A; --text: #2c3e50; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); padding: 20px; }
+        .container { max-width: 800px; margin: auto; }
+        .card { background: white; padding: 25px; border-radius: 12px; margin-bottom: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        label { display: block; margin: 10px 0 5px; font-weight: bold; }
+        input, textarea, select { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        button { background: var(--accent); color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; }
+        .perle-item { display: flex; align-items: center; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; }
+        .thumb { width: 40px; height: 40px; object-fit: cover; margin-right: 10px; border-radius: 4px; }
     </style>
 </head>
 <body>
-
-<div class="admin-card">
-    <h2>Ajouter une Perle</h2>
-    <form id="adminForm">
-        <label>Auteur</label>
-        <input type="text" id="author" placeholder="Ex: Imam Al-Ghazali" required>
-
-        <label>Citation</label>
-        <textarea id="text" placeholder="Entrez la sagesse ici..." required></textarea>
-
-        <label>Catégorie (Tag)</label>
-        <select id="tag">
-            <option value="tawhid">Tawhid</option>
-            <option value="zuhd">Zuhd</option>
-            <option value="salafs">Salafs</option>
-            <option value="women">Women</option>
-            <option value="marriage">Marriage</option>
-        </select>
-
-        <label>Image de couverture (Optionnel)</label>
-        <input type="file" id="cover" accept="image/*">
-
-        <button type="submit" id="submitBtn">Publier la Perle</button>
-    </form>
-    <a href="/" class="back-link">← Retour au site public</a>
+<div class="container">
+    <div class="card">
+        <h2>✨ Nouvelle Perle</h2>
+        <form id="addForm">
+            <input type="text" id="author" placeholder="Auteur" required>
+            <textarea id="text" placeholder="Citation..." required></textarea>
+            <div style="display: flex; gap: 10px;">
+                <select id="tag">
+                    <option value="tawhid">Tawhid</option>
+                    <option value="zuhd">Zuhd</option>
+                    <option value="salafs">Salafs</option>
+                </select>
+                <input type="text" id="page" placeholder="Page (ex: 42)">
+            </div>
+            <input type="file" id="cover" accept="image/*">
+            <button type="submit" id="submitBtn">🚀 Publier</button>
+        </form>
+    </div>
+    <div class="card">
+        <h2>📚 Gestion</h2>
+        <div id="perlesList">Chargement...</div>
+    </div>
 </div>
 
 <script>
-    const form = document.getElementById('adminForm');
-    const submitBtn = document.getElementById('submitBtn');
+    const addForm = document.getElementById('addForm');
+    async function loadPerles() {
+        const res = await fetch('/api/perles');
+        const data = await res.json();
+        document.getElementById('perlesList').innerHTML = data.map(p => `
+            <div class="perle-item">
+                <div style="display:flex; align-items:center;">
+                    <img src="${p.cover_url || ''}" class="thumb">
+                    <span><strong>${p.author}</strong> <small>(p. ${p.page || '-'})</small></span>
+                </div>
+                <button onclick="deletePerle(${p.id})" style="width:auto; background:#e74c3c; padding:5px 10px;">Supprimer</button>
+            </div>
+        `).join('');
+    }
 
-    form.addEventListener('submit', async (e) => {
+    addForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
-        submitBtn.disabled = true;
-        submitBtn.innerText = "Publication en cours...";
-
         const formData = new FormData();
         formData.append('author', document.getElementById('author').value);
         formData.append('text', document.getElementById('text').value);
         formData.append('tag', document.getElementById('tag').value);
-        
-        const coverFile = document.getElementById('cover').files[0];
-        if (coverFile) {
-            formData.append('cover', coverFile);
-        }
+        formData.append('page', document.getElementById('page').value);
+        const file = document.getElementById('cover').files[0];
+        if (file) formData.append('cover', file);
 
-        try {
-            const response = await fetch('/api/perles', {
-                method: 'POST',
-                body: formData
-            });
-
-            if (response.ok) {
-                alert("La perle a été ajoutée avec succès !");
-                form.reset();
-                window.location.href = "/"; // Redirige vers l'accueil pour voir le résultat
-            } else {
-                const errorData = await response.text();
-                alert("Erreur lors de la publication : " + errorData);
-            }
-        } catch (error) {
-            alert("Erreur réseau ou serveur.");
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.innerText = "Publier la Perle";
-        }
+        await fetch('/api/perles', { method: 'POST', body: formData });
+        addForm.reset();
+        loadPerles();
     });
-</script>
 
+    async function deletePerle(id) {
+        if (confirm("Supprimer ?")) {
+            await fetch('/api/perles?id=' + id, { method: 'DELETE' });
+            loadPerles();
+        }
+    }
+    loadPerles();
+</script>
 </body>
 </html>
