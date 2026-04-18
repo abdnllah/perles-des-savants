@@ -15,17 +15,19 @@ export async function onRequest(context) {
         const author = formData.get('author');
         const text = formData.get('text');
         const tag = formData.get('tag');
+        const page = formData.get('page'); // Nouveau
         const cover = formData.get('cover');
 
         let coverUrl = null;
         if (cover && cover.size > 0) {
-            const key = crypto.randomUUID(); // Génère une clé unique
+            const key = crypto.randomUUID();
             await BUCKET.put(key, cover.stream(), { httpMetadata: { contentType: cover.type } });
-            coverUrl = `/api/image/${key}`; // Lien vers ton fichier [key].js
+            coverUrl = `/api/image/${key}`;
         }
 
-        await DB.prepare("INSERT INTO perles (author, text, tag, cover_url) VALUES (?, ?, ?, ?)")
-            .bind(author, text, tag, coverUrl)
+        // Ajout de 'page' dans la requête SQL
+        await DB.prepare("INSERT INTO perles (author, text, tag, cover_url, page) VALUES (?, ?, ?, ?, ?)")
+            .bind(author, text, tag, coverUrl, page)
             .run();
         return new Response("OK", { status: 200 });
     }
@@ -33,8 +35,6 @@ export async function onRequest(context) {
     // --- SUPPRESSION (DELETE) ---
     if (request.method === "DELETE") {
         const id = url.searchParams.get('id');
-        if (!id) return new Response("ID manquant", { status: 400 });
-        
         await DB.prepare("DELETE FROM perles WHERE id = ?").bind(id).run();
         return new Response("Supprimé", { status: 200 });
     }
