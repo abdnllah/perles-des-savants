@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perles des Savants</title>
+    <style>
+        :root { --bg: #f4f1ea; --paper: #ffffff; --text: #2c3e50; --lines: #e8f0fe; --margin: #ffcfcf; --accent: #8e7d5b; }
+        [data-theme="dark"] { --bg: #121212; --paper: #1e1e1e; --text: #e0e0e0; --lines: #2d2d2d; --margin: #4a2a2a; --accent: #c5b38a; }
+        
+        body { font-family: 'Charter', 'Georgia', serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; transition: 0.3s; }
+        header { text-align: center; padding: 40px 0; }
+        .theme-switch { position: fixed; top: 20px; right: 20px; cursor: pointer; font-size: 1.5rem; z-index: 1000; }
+        
+        .nav-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 40px; }
+        .tag-btn { background: var(--paper); border: 1px solid var(--lines); padding: 8px 16px; border-radius: 4px; cursor: pointer; color: var(--text); }
+        .tag-btn.active { background: var(--accent); color: white; border: none; }
+
+        .quote-grid { max-width: 750px; margin: 0 auto; }
+        .quote-card { 
+            background: var(--paper);
+            background-image: linear-gradient(90deg, transparent 49px, var(--margin) 49px, var(--margin) 51px, transparent 51px), linear-gradient(var(--lines) .1em, transparent .1em);
+            background-size: 100% 1.5em;
+            padding: 3em 2em 2em 4.5em; margin-bottom: 30px;
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.05); border-radius: 2px;
+        }
+        .book-img { width: 100px; height: 150px; float: left; margin: 0 25px 10px -10px; object-fit: cover; box-shadow: 2px 2px 8px rgba(0,0,0,0.2); }
+        .quote-text { font-size: 1.3rem; font-style: italic; line-height: 1.5em; }
+        .quote-author { text-align: right; font-weight: bold; color: var(--accent); margin-top: 15px; }
+
+        #admin-panel { display:none; background: var(--paper); padding: 30px; border-top: 4px solid var(--accent); position: fixed; bottom: 0; left: 0; right: 0; z-index: 1001; }
+        input, textarea, select { width: 100%; margin-bottom: 10px; padding: 12px; border: 1px solid var(--lines); background: var(--bg); color: var(--text); box-sizing: border-box; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="theme-switch" onclick="toggleTheme()">🌓</div>
+    <header>
+        <h1>Perles des Savants</h1>
+        <div class="nav-tags" id="tagList">
+            <button class="tag-btn active" onclick="filterBy('all')">Tous</button>
+            <button class="tag-btn" onclick="filterBy('tawhid')">Tawhid</button>
+            <button class="tag-btn" onclick="filterBy('zuhd')">Zuhd</button>
+            <button class="tag-btn" onclick="filterBy('salafs')">Salafs</button>
+        </div>
+    </header>
+
+    <main class="quote-grid" id="mainGrid">Loading...</main>
+
+    <footer style="text-align: center; margin: 50px; opacity: 0.5; cursor: pointer;" onclick="toggleAdmin()">🔒 Admin Panel</footer>
+
+    <div id="admin-panel">
+        <h2>Ajouter une Perle</h2>
+        <form id="quoteForm">
+            <input type="text" id="author" placeholder="Auteur" required>
+            <textarea id="text" placeholder="Citation..." required></textarea>
+            <select id="tag">
+                <option value="tawhid">Tawhid</option><option value="zuhd">Zuhd</option><option value="salafs">Salafs</option>
+                <option value="women">Women</option><option value="marriage">Marriage</option>
+            </select>
+            <input type="file" id="cover" accept="image/*">
+            <button type="submit" style="padding: 15px; background: var(--accent); color: white; border: none; cursor: pointer;">Publier</button>
+            <button type="button" onclick="toggleAdmin()">Annuler</button>
+        </form>
+    </div>
+
+    <script>
+        // Theme Logic
+        const toggleTheme = () => {
+            const t = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            document.body.setAttribute('data-theme', t);
+            localStorage.setItem('theme', t);
+        };
+        document.body.setAttribute('data-theme', localStorage.getItem('theme') || 'light');
+
+        // Fetch and Filter
+        let allQuotes = [];
+        async function loadQuotes() {
+            const res = await fetch('/api/quotes');
+            allQuotes = await res.json();
+            renderQuotes(allQuotes);
+        }
+
+        function renderQuotes(data) {
+            const grid = document.getElementById('mainGrid');
+            grid.innerHTML = data.map(q => `
+                <article class="quote-card" data-tag="${q.tag}">
+                    <img src="${q.image_url || 'https://via.placeholder.com/100x150'}" class="book-img">
+                    <p class="quote-text">"${q.text}"</p>
+                    <p class="quote-author">— ${q.author}</p>
+                </article>
+            `).join('');
+        }
+
+        function filterBy(tag) {
+            if (tag === 'all') renderQuotes(allQuotes);
+            else renderQuotes(allQuotes.filter(q => q.tag === tag));
+        }
+
+        function toggleAdmin() {
+            const panel = document.getElementById('admin-panel');
+            panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+        }
+
+        // Handle Form Submit
+        document.getElementById('quoteForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData();
+            formData.append('author', document.getElementById('author').value);
+            formData.append('text', document.getElementById('text').value);
+            formData.append('tag', document.getElementById('tag').value);
+            formData.append('cover', document.getElementById('cover').files[0]);
+
+            const res = await fetch('/api/quotes', { method: 'POST', body: formData });
+            if (res.ok) { location.reload(); }
+        };
+
+        loadQuotes();
+    </script>
+</body>
+</html>
