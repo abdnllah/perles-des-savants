@@ -3,39 +3,15 @@ export async function onRequest(context) {
 
     if (request.method === "POST") {
         try {
-            const formData = await request.formData();
+            const data = await request.json();
             
-            const author = formData.get('author');
-            const text = formData.get('text');
-            const tag = formData.get('tag');
-            const page = formData.get('page');
-            const cover = formData.get('cover'); // Récupération du fichier
+            const author = data.author;
+            const text = data.text;
+            const tag = data.tag;
+            const page = data.page;
+            const coverUrl = data.cover_url || null;
 
-            let coverUrl = null;
-
-            // --- DEBUG LOGS (Visibles dans Cloudflare Dashboard) ---
-            console.log("Données reçues - Auteur:", author);
-            console.log("Vérification Image - Existe ?:", !!cover);
-            if (cover) console.log("Vérification Image - Taille:", cover.size);
-
-            // Tentative d'upload vers R2
-            if (cover && cover.size > 0) {
-                const key = crypto.randomUUID();
-                try {
-                    // On vérifie si BUCKET existe avant d'écrire
-                    if (env.BUCKET) {
-                        await env.BUCKET.put(key, cover);
-                        coverUrl = `/api/image/${key}`;
-                        console.log("Image stockée avec succès:", coverUrl);
-                    } else {
-                        console.error("ERREUR: env.BUCKET n'est pas défini. Vérifiez le wrangler.toml");
-                    }
-                } catch (r2Error) {
-                    console.error("Erreur fatale R2:", r2Error.message);
-                }
-            }
-
-            // INSERTION SQL (Ordre conforme à ton PRAGMA)
+            // Simple SQL insert - no R2 handling
             await env.DB.prepare(
                 "INSERT INTO perles (author, text, tag, cover_url, page) VALUES (?, ?, ?, ?, ?)"
             ).bind(author, text, tag, coverUrl, page).run();
