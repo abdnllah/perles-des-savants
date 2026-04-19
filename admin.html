@@ -16,130 +16,151 @@
         .perle-item { display: flex; align-items: center; justify-content: space-between; padding: 15px; border-bottom: 1px solid #eee; background: #fff; margin-bottom: 5px; border-radius: 8px; }
         .thumb { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; margin-right: 15px; background: #eee; }
         .btn-delete { background: #e74c3c; width: auto; padding: 8px 12px; font-size: 0.8rem; }
+        .btn-delete:hover { background: #c0392b; }
     </style>
 </head>
 <body>
+    <div class="container">
+        <div class="card">
+            <h2>✨ Ajouter une perle</h2>
+            <form id="addForm">
+                <label>Auteur</label>
+                <input type="text" id="author" placeholder="Ex: Ibn Taymiyya" required>
+                
+                <label>Citation</label>
+                <textarea id="text" placeholder="Entrez la sagesse..." required></textarea>
+                
+                <div style="display: flex; gap: 15px;">
+                    <div style="flex: 2;">
+                        <label>Catégorie</label>
+                        <select id="tag">
+                            <option value="tawhid">Tawhid</option>
+                            <option value="zuhd">Zuhd</option>
+                            <option value="salafs">Salafs</option>
+                            <option value="women">Women</option>
+                            <option value="marriage">Marriage</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1;">
+                        <label>Page</label>
+                        <input type="text" id="page" placeholder="Ex: 124">
+                    </div>
+                </div>
+                
+                <label>Image (Optionnel)</label>
+                <input type="file" id="cover" accept="image/*">
+                
+                <button type="submit" id="submitBtn">🚀 Publier</button>
+            </form>
+        </div>
 
-<div class="container">
-    <div class="card">
-        <h2>✨ Ajouter une perle</h2>
-        <form id="addForm">
-            <label>Auteur</label>
-            <input type="text" id="author" placeholder="Ex: Ibn Taymiyya" required>
-            
-            <label>Citation</label>
-            <textarea id="text" placeholder="Entrez la sagesse..." required></textarea>
-            
-            <div style="display: flex; gap: 15px;">
-                <div style="flex: 2;">
-                    <label>Catégorie</label>
-                    <select id="tag">
-                        <option value="tawhid">Tawhid</option>
-                        <option value="zuhd">Zuhd</option>
-                        <option value="salafs">Salafs</option>
-                        <option value="women">Women</option>
-                        <option value="marriage">Marriage</option>
-                    </select>
-                </div>
-                <div style="flex: 1;">
-                    <label>Page</label>
-                    <input type="text" id="page" placeholder="Ex: 124">
-                </div>
-            </div>
-            
-            <label>Image (Optionnel)</label>
-            <input type="file" id="cover" accept="image/*">
-            
-            <button type="submit" id="submitBtn">🚀 Publier</button>
-        </form>
+        <div class="card">
+            <h2>📚 Gestion</h2>
+            <div id="perlesList">Chargement...</div>
+        </div>
     </div>
 
-    <div class="card">
-        <h2>📚 Gestion</h2>
-        <div id="perlesList">Chargement...</div>
-    </div>
-</div>
+    <script>
+        const addForm = document.getElementById('addForm');
 
-<script>
-    const addForm = document.getElementById('addForm');
-
-    async function loadPerles() {
-        const res = await fetch('/api/perles');
-        const data = await res.json();
-        const list = document.getElementById('perlesList');
-        list.innerHTML = data.length ? data.map(p => `
-            <div class="perle-item">
-                <img src="${p.cover_url || ''}" class="thumb" onerror="this.style.display='none'">
-                <div style="flex-grow:1">
-                    <strong>${p.author}</strong> <small>(p. ${p.page || '-'})</small><br>
-                    <span style="font-size:0.8rem; color:gray">${p.text.substring(0,40)}...</span>
+        async function loadPerles() {
+            const res = await fetch('/api/perles');
+            const data = await res.json();
+            const list = document.getElementById('perlesList');
+            
+            list.innerHTML = data.length ? data.map(p => `
+                <div class="perle-item">
+                    <img src="${p.cover_url || ''}" class="thumb" onerror="this.style.display='none'">
+                    <div style="flex-grow:1">
+                        <strong>${p.author}</strong> <small>(p. ${p.page || '-'})</small><br>
+                        <span style="font-size:0.8rem; color:gray">${p.text.substring(0,40)}...</span>
+                    </div>
+                    <button class="btn-delete" data-id="${p.id}">Supprimer</button>
                 </div>
-                <button class="btn-delete" onclick="deletePerle(${p.id})">Supprimer</button>
-            </div>
-        `).join('') : "Aucune perle.";
-    }
-
-    addForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const btn = document.getElementById('submitBtn');
-        btn.disabled = true;
-        btn.textContent = '📤 Upload en cours...';
-
-        let coverUrl = null;
-
-        // Upload image to Cloudinary first if there's a file
-        const file = document.getElementById('cover').files[0];
-        if (file) {
-            const cloudinaryData = new FormData();
-            cloudinaryData.append('file', file);
-            cloudinaryData.append('upload_preset', 'perles_covers');
-            cloudinaryData.append('cloud_name', 'dlgt70pzo');
-
-            try {
-                const cloudinaryRes = await fetch(
-                    'https://api.cloudinary.com/v1_1/dlgt70pzo/image/upload',
-                    { method: 'POST', body: cloudinaryData }
-                );
-                const cloudinaryResult = await cloudinaryRes.json();
-                coverUrl = cloudinaryResult.secure_url;
-            } catch (err) {
-                alert('Erreur upload image: ' + err.message);
-                btn.disabled = false;
-                btn.textContent = '🚀 Publier';
-                return;
-            }
+            `).join('') : "Aucune perle.";
         }
 
-        // Now save to database with Cloudinary URL
-        const res = await fetch('/api/perles', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                author: document.getElementById('author').value,
-                text: document.getElementById('text').value,
-                tag: document.getElementById('tag').value,
-                page: document.getElementById('page').value,
-                cover_url: coverUrl
-            })
+        // Event delegation for delete buttons
+        document.getElementById('perlesList').addEventListener('click', async (e) => {
+            if (e.target.classList.contains('btn-delete')) {
+                const id = e.target.dataset.id;
+                if (confirm("Êtes-vous sûr de vouloir supprimer cette perle ?")) {
+                    try {
+                        const response = await fetch('/api/perles?id=' + id, { method: 'DELETE' });
+                        if (response.ok) {
+                            loadPerles();
+                        } else {
+                            alert('Erreur lors de la suppression');
+                        }
+                    } catch (err) {
+                        alert('Erreur: ' + err.message);
+                    }
+                }
+            }
         });
 
-        if (res.ok) {
-            addForm.reset();
-            loadPerles();
-        }
-        btn.disabled = false;
-        btn.textContent = '🚀 Publier';
-    });
+        addForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.textContent = '📤 Upload en cours...';
 
-    async function deletePerle(id) {
-        if (confirm("Supprimer ?")) {
-            await fetch('/api/perles?id=' + id, { method: 'DELETE' });
-            loadPerles();
-        }
-    }
+            let coverUrl = null;
 
-    loadPerles();
-</script>
+            // Upload image to Cloudinary first if there's a file
+            const file = document.getElementById('cover').files[0];
+            if (file) {
+                const cloudinaryData = new FormData();
+                cloudinaryData.append('file', file);
+                cloudinaryData.append('upload_preset', 'perles_covers');
+                cloudinaryData.append('cloud_name', 'dlgt70pzo');
+
+                try {
+                    const cloudinaryRes = await fetch(
+                        'https://api.cloudinary.com/v1_1/dlgt70pzo/image/upload',
+                        { method: 'POST', body: cloudinaryData }
+                    );
+                    const cloudinaryResult = await cloudinaryRes.json();
+                    coverUrl = cloudinaryResult.secure_url;
+                } catch (err) {
+                    alert('Erreur upload image: ' + err.message);
+                    btn.disabled = false;
+                    btn.textContent = '🚀 Publier';
+                    return;
+                }
+            }
+
+            // Now save to database with Cloudinary URL
+            try {
+                const res = await fetch('/api/perles', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        author: document.getElementById('author').value,
+                        text: document.getElementById('text').value,
+                        tag: document.getElementById('tag').value,
+                        page: document.getElementById('page').value,
+                        cover_url: coverUrl
+                    })
+                });
+
+                if (res.ok) {
+                    addForm.reset();
+                    loadPerles();
+                    alert('Perle ajoutée avec succès !');
+                } else {
+                    alert('Erreur lors de l\'ajout de la perle');
+                }
+            } catch (err) {
+                alert('Erreur: ' + err.message);
+            }
+
+            btn.disabled = false;
+            btn.textContent = '🚀 Publier';
+        });
+
+        // Load perles on page load
+        loadPerles();
+    </script>
 </body>
 </html>
-
