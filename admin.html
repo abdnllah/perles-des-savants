@@ -12,11 +12,16 @@
         h2 { color: var(--accent); margin-top: 0; }
         label { display: block; margin: 10px 0 5px; font-weight: bold; }
         input, textarea, select { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-        button { background: var(--accent); color: white; border: none; padding: 15px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; }
+        button { background: var(--accent); color: white; border: none; padding: 15px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; transition: background 0.3s; }
+        button:hover { opacity: 0.9; }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
         .perle-item { display: flex; align-items: center; justify-content: space-between; padding: 15px; border-bottom: 1px solid #eee; background: #fff; margin-bottom: 5px; border-radius: 8px; }
         .thumb { width: 50px; height: 50px; object-fit: cover; border-radius: 4px; margin-right: 15px; background: #eee; }
-        .btn-delete { background: #e74c3c; width: auto; padding: 8px 12px; font-size: 0.8rem; }
+        .btn-delete { background: #e74c3c; width: auto; padding: 8px 12px; font-size: 0.8rem; transition: background 0.3s; }
         .btn-delete:hover { background: #c0392b; }
+        .loading { text-align: center; color: #888; padding: 20px; }
+        .error { color: #e74c3c; background: #fee; padding: 10px; border-radius: 6px; margin-top: 10px; }
+        .success { color: #27ae60; background: #e8f8f5; padding: 10px; border-radius: 6px; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -28,7 +33,7 @@
                 <input type="text" id="author" placeholder="Ex: Ibn Taymiyya" required>
                 
                 <label>Citation</label>
-                <textarea id="text" placeholder="Entrez la sagesse..." required></textarea>
+                <textarea id="text" placeholder="Entrez la sagesse..." rows="4" required></textarea>
                 
                 <div style="display: flex; gap: 15px;">
                     <div style="flex: 2;">
@@ -51,88 +56,158 @@
                 <input type="file" id="cover" accept="image/*">
                 
                 <button type="submit" id="submitBtn">🚀 Publier</button>
+                <div id="addMessage"></div>
             </form>
         </div>
 
         <div class="card">
-            <h2>📚 Gestion</h2>
-            <div id="perlesList">Chargement...</div>
+            <h2>📚 Gestion des perles</h2>
+            <div id="perlesList">
+                <div class="loading">Chargement...</div>
+            </div>
         </div>
     </div>
 
     <script>
         const addForm = document.getElementById('addForm');
+        const perlesList = document.getElementById('perlesList');
+        const addMessage = document.getElementById('addMessage');
 
+        // Show message helper
+        function showMessage(element, message, type = 'success') {
+            element.innerHTML = `<div class="${type}">${message}</div>`;
+            setTimeout(() => { element.innerHTML = ''; }, 5000);
+        }
+
+        // Load all perles
         async function loadPerles() {
-            const res = await fetch('/api/perles');
-            const data = await res.json();
-            const list = document.getElementById('perlesList');
-            
-            list.innerHTML = data.length ? data.map(p => `
-                <div class="perle-item">
-                    <img src="${p.cover_url || ''}" class="thumb" onerror="this.style.display='none'">
-                    <div style="flex-grow:1">
-                        <strong>${p.author}</strong> <small>(p. ${p.page || '-'})</small><br>
-                        <span style="font-size:0.8rem; color:gray">${p.text.substring(0,40)}...</span>
+            try {
+                perlesList.innerHTML = '<div class="loading">Chargement...</div>';
+                
+                const response = await fetch('/api/perles');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (!data || data.length === 0) {
+                    perlesList.innerHTML = '<div style="text-align:center; color:#888; padding:20px;">Aucune perle pour le moment.</div>';
+                    return;
+                }
+                
+                perlesList.innerHTML = data.map(p => `
+                    <div class="perle-item" data-id="${p.id}">
+                        ${p.cover_url ? `<img src="${p.cover_url}" class="thumb" onerror="this.style.display='none'">` : '<div class="thumb"></div>'}
+                        <div style="flex-grow:1">
+                            <strong>${escapeHtml(p.author)}</strong> <small>(p. ${p.page || '-'})</small><br>
+                            <span style="font-size:0.8rem; color:gray">${escapeHtml(p.text.substring(0, 60))}...</span>
+                        </div>
+                        <button class="btn-delete" data-id="${p.id}">🗑️ Supprimer</button>
                     </div>
-                    <button class="btn-delete" data-id="${p.id}">Supprimer</button>
-                </div>
-            `).join('') : "Aucune perle.";
+                `).join('');
+                
+            } catch (error) {
+                console.error('Error loading perles:', error);
+                perlesList.innerHTML = `<div class="error">Erreur lors du chargement: ${error.message}</div>`;
+            }
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         // Event delegation for delete buttons
-        document.getElementById('perlesList').addEventListener('click', async (e) => {
+        perlesList.addEventListener('click', async (e) => {
             if (e.target.classList.contains('btn-delete')) {
                 const id = e.target.dataset.id;
-                if (confirm("Êtes-vous sûr de vouloir supprimer cette perle ?")) {
-                    try {
-                        const response = await fetch('/api/perles?id=' + id, { method: 'DELETE' });
-                        if (response.ok) {
-                            loadPerles();
-                        } else {
-                            alert('Erreur lors de la suppression');
-                        }
-                    } catch (err) {
-                        alert('Erreur: ' + err.message);
+                const perleItem = e.target.closest('.perle-item');
+                
+                if (!confirm("Êtes-vous sûr de vouloir supprimer cette perle ?")) {
+                    return;
+                }
+                
+                // Disable button during deletion
+                e.target.disabled = true;
+                e.target.textContent = '⏳ Suppression...';
+                
+                try {
+                    const response = await fetch(`/api/perles?id=${id}`, { 
+                        method: 'DELETE'
+                    });
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
+                        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
                     }
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        // Animate removal
+                        perleItem.style.transition = 'opacity 0.3s, transform 0.3s';
+                        perleItem.style.opacity = '0';
+                        perleItem.style.transform = 'translateX(-20px)';
+                        
+                        setTimeout(() => {
+                            loadPerles();
+                        }, 300);
+                    } else {
+                        throw new Error('La suppression a échoué');
+                    }
+                    
+                } catch (error) {
+                    console.error('Error deleting perle:', error);
+                    alert(`Erreur lors de la suppression: ${error.message}`);
+                    e.target.disabled = false;
+                    e.target.textContent = '🗑️ Supprimer';
                 }
             }
         });
 
+        // Handle form submission
         addForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            
             const btn = document.getElementById('submitBtn');
             btn.disabled = true;
             btn.textContent = '📤 Upload en cours...';
+            addMessage.innerHTML = '';
 
-            let coverUrl = null;
-
-            // Upload image to Cloudinary first if there's a file
-            const file = document.getElementById('cover').files[0];
-            if (file) {
-                const cloudinaryData = new FormData();
-                cloudinaryData.append('file', file);
-                cloudinaryData.append('upload_preset', 'perles_covers');
-                cloudinaryData.append('cloud_name', 'dlgt70pzo');
-
-                try {
-                    const cloudinaryRes = await fetch(
-                        'https://api.cloudinary.com/v1_1/dlgt70pzo/image/upload',
-                        { method: 'POST', body: cloudinaryData }
-                    );
-                    const cloudinaryResult = await cloudinaryRes.json();
-                    coverUrl = cloudinaryResult.secure_url;
-                } catch (err) {
-                    alert('Erreur upload image: ' + err.message);
-                    btn.disabled = false;
-                    btn.textContent = '🚀 Publier';
-                    return;
-                }
-            }
-
-            // Now save to database with Cloudinary URL
             try {
-                const res = await fetch('/api/perles', {
+                let coverUrl = null;
+
+                // Upload image to Cloudinary if file selected
+                const file = document.getElementById('cover').files[0];
+                if (file) {
+                    const cloudinaryData = new FormData();
+                    cloudinaryData.append('file', file);
+                    cloudinaryData.append('upload_preset', 'perles_covers');
+                    cloudinaryData.append('cloud_name', 'dlgt70pzo');
+
+                    try {
+                        const cloudinaryRes = await fetch(
+                            'https://api.cloudinary.com/v1_1/dlgt70pzo/image/upload',
+                            { method: 'POST', body: cloudinaryData }
+                        );
+                        
+                        if (!cloudinaryRes.ok) {
+                            throw new Error('Échec de l\'upload de l\'image');
+                        }
+                        
+                        const cloudinaryResult = await cloudinaryRes.json();
+                        coverUrl = cloudinaryResult.secure_url;
+                    } catch (err) {
+                        throw new Error(`Erreur upload image: ${err.message}`);
+                    }
+                }
+
+                // Save to database
+                const response = await fetch('/api/perles', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -144,19 +219,28 @@
                     })
                 });
 
-                if (res.ok) {
-                    addForm.reset();
-                    loadPerles();
-                    alert('Perle ajoutée avec succès !');
-                } else {
-                    alert('Erreur lors de l\'ajout de la perle');
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
                 }
-            } catch (err) {
-                alert('Erreur: ' + err.message);
-            }
 
-            btn.disabled = false;
-            btn.textContent = '🚀 Publier';
+                const result = await response.json();
+                
+                if (result.success) {
+                    addForm.reset();
+                    showMessage(addMessage, '✅ Perle ajoutée avec succès !', 'success');
+                    loadPerles();
+                } else {
+                    throw new Error('L\'ajout a échoué');
+                }
+
+            } catch (error) {
+                console.error('Error adding perle:', error);
+                showMessage(addMessage, `❌ ${error.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🚀 Publier';
+            }
         });
 
         // Load perles on page load
