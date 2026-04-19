@@ -42,8 +42,10 @@
                             <option value="tawhid">Tawhid</option>
                             <option value="zuhd">Zuhd</option>
                             <option value="salafs">Salafs</option>
-                            <option value="women">Women</option>
-                            <option value="marriage">Marriage</option>
+                            <option value="fiqh">Fiqh</option>
+                            <option value="adab">Adab</option>
+                            <option value="femmes">Femmes</option>
+                            <option value="mariage">Mariage</option>
                         </select>
                     </div>
                     <div style="flex: 1;">
@@ -102,7 +104,8 @@
                         ${p.cover_url ? `<img src="${p.cover_url}" class="thumb" onerror="this.style.display='none'">` : '<div class="thumb"></div>'}
                         <div style="flex-grow:1">
                             <strong>${escapeHtml(p.author)}</strong> <small>(p. ${p.page || '-'})</small><br>
-                            <span style="font-size:0.8rem; color:gray">${escapeHtml(p.text.substring(0, 60))}...</span>
+                            <span style="font-size:0.8rem; color:gray">${escapeHtml(p.text.substring(0, 60))}...</span><br>
+                            <span style="font-size:0.7rem; color:#844F4A; text-transform: uppercase;">${p.tag || ''}</span>
                         </div>
                         <button class="btn-delete" data-id="${p.id}">🗑️ Supprimer</button>
                     </div>
