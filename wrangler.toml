@@ -5,7 +5,3 @@ pages_build_output_dir = "."
 binding = "DB"
 database_name = "perles_db"
 database_id = "18e7ca91-de5b-4028-bbb7-70909205d954"
-
-[[r2_buckets]]
-binding = "BUCKET"
-bucket_name = "book-covers"
