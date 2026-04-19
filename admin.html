@@ -83,22 +83,52 @@
         e.preventDefault();
         const btn = document.getElementById('submitBtn');
         btn.disabled = true;
+        btn.textContent = '📤 Upload en cours...';
 
-        const formData = new FormData();
-        formData.append('author', document.getElementById('author').value);
-        formData.append('text', document.getElementById('text').value);
-        formData.append('tag', document.getElementById('tag').value);
-        formData.append('page', document.getElementById('page').value);
-        
+        let coverUrl = null;
+
+        // Upload image to Cloudinary first if there's a file
         const file = document.getElementById('cover').files[0];
-        if (file) formData.append('cover', file);
+        if (file) {
+            const cloudinaryData = new FormData();
+            cloudinaryData.append('file', file);
+            cloudinaryData.append('upload_preset', 'perles_covers');
+            cloudinaryData.append('cloud_name', 'dlgt70pzo');
 
-        const res = await fetch('/api/perles', { method: 'POST', body: formData });
+            try {
+                const cloudinaryRes = await fetch(
+                    'https://api.cloudinary.com/v1_1/dlgt70pzo/image/upload',
+                    { method: 'POST', body: cloudinaryData }
+                );
+                const cloudinaryResult = await cloudinaryRes.json();
+                coverUrl = cloudinaryResult.secure_url;
+            } catch (err) {
+                alert('Erreur upload image: ' + err.message);
+                btn.disabled = false;
+                btn.textContent = '🚀 Publier';
+                return;
+            }
+        }
+
+        // Now save to database with Cloudinary URL
+        const res = await fetch('/api/perles', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                author: document.getElementById('author').value,
+                text: document.getElementById('text').value,
+                tag: document.getElementById('tag').value,
+                page: document.getElementById('page').value,
+                cover_url: coverUrl
+            })
+        });
+
         if (res.ok) {
             addForm.reset();
             loadPerles();
         }
         btn.disabled = false;
+        btn.textContent = '🚀 Publier';
     });
 
     async function deletePerle(id) {
